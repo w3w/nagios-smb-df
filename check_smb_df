@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Author: Adam strauch <cx@initd.cz>
+# Copyright: w3w, s.r.o
+
+if [ ! $# == 5 ]; then
+    echo "Usage: $0 warning_percent_level critical_percent_level smb_user smb_password smb_url"
+    exit 4
+fi
+
+W=$1
+C=$2
+SMBUSER=$3
+SMBPASS=$4
+SMBURL=$5
+
+TOTAL_BLOCKS=`echo du | smbclient -U $SMBUSER $SMBURL $SMBPASS 2> /dev/null | cut -d " " -f 1 | grep -o -e [0-9]\*`
+BLOCK_SIZE=`echo du | smbclient -U $SMBUSER $SMBURL $SMBPASS 2> /dev/null | cut -d " " -f 5 | grep -o -e [0-9]\* | head -n 1`
+FREE_BLOCKS=`echo du | smbclient -U $SMBUSER $SMBURL $SMBPASS 2> /dev/null | cut -d " " -f 6 | grep -o -e [0-9]\*`
+PERCENT=`echo "($FREE_BLOCKS*100/$TOTAL_BLOCKS*100)/100" | bc`
+
+FREEGB=`echo $FREE_BLOCKS*$BLOCK_SIZE/1024/1024/1024 | bc`
+TOTALGB=`echo $TOTAL_BLOCKS*$BLOCK_SIZE/1024/1024/1024 | bc`
+
+
+state=3
+msg=UNKNOWN
+
+if [ $PERCENT -lt $C ]; then
+    state=2
+    msg=CRITICAL
+else if [ $PERCENT -lt $W ]; then
+    state=1
+    msg=WARNING
+else
+    state=0
+    msg=OK
+fi
+fi
+
+echo "$msg: $FREEGB GB free of $TOTALGB GB ($PERCENT %)"
+
+exit $state
